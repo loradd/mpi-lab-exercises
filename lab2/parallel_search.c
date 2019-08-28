@@ -54,15 +54,7 @@ int main (int argc, char *argv[])
     displacements[i] = i * (N/size);
   }
   sendcounts[size - 1] += N%size;
-  MPI_Scatterv(&b, 
-               sendcounts, 
-               displacements, 
-               MPI_INT, 
-               &local_b,
-               ((N/size) + (rank == size - 1 ? N%size : 0)), 
-               MPI_INT, 
-               MASTER, 
-               MPI_COMM_WORLD);
+  MPI_Scatterv(&b, sendcounts, displacements, MPI_INT, &local_b, ((N/size) + (rank == size - 1 ? N%size : 0)), MPI_INT, MASTER, MPI_COMM_WORLD);
   
   sprintf(output_filename, "found.data_%d", rank);
   output_file = fopen(output_filename, "w");
