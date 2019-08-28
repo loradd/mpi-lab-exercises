@@ -8,7 +8,8 @@ int main (int argc, char *argv[])
   const int N=300;
   int i,
       target;
-  int b[N], local_b[N];
+  int b[N], 
+      local_b[N];
   int b_start,
       b_end;
   FILE *input_file,
@@ -40,22 +41,36 @@ int main (int argc, char *argv[])
   // retrieve rank and size
   MPI_Comm_size(MPI_COMM_WORLD, &size);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  
+  // broadcast target
+  MPI_Bcast(&target, 1, MPI_INT, MASTER, MPI_COMM_WORLD);
 
-  // broadcast vector
-  MPI_Scatter(&b, N, MPI_INT, &local_b, N, MPI_INT, MASTER, MPI_COMM_WORLD);
-  // MPI_Scatter(&b, N, MPI_INT, &local_b, N, MPI_INT, MASTER, MPI_COMM_WORLD);
-    
-  // create process-local output file
+  // MPI_SUM over array except first
+  // displacements : 0, N/size * 1, N/size * 2
+  int sendcounts[size],
+      displacements[size];
+  for (i = 0; i < size; i++) {
+    sendcounts[i] = (N/size);
+    displacements[i] = i * (N/size);
+  }
+  sendcounts[size - 1] += N%size;
+  MPI_Scatterv(&b, 
+               sendcounts, 
+               displacements, 
+               MPI_INT, 
+               &local_b,
+               ((N/size) + (rank == size - 1 ? N%size : 0)), 
+               MPI_INT, 
+               MASTER, 
+               MPI_COMM_WORLD);
+  
   sprintf(output_filename, "found.data_%d", rank);
   output_file = fopen(output_filename, "w");
-  // initialize b_start
-  b_start = rank * (N / size); // 0[0], 1[N/size], [2N/size]
-  b_end = rank == size - 1 ? N : b_start + (N/size); // 0[N/size]
-
-  // search target
-  for (i = b_start; i < b_end; i++) {
-    
-    if (b[i] == target) {
+  
+  // b_start = rank * (N / size); // 0[0], 1[N/size], [2N/size]
+  // b_end = rank == size - 1 ? N : b_start + (N/size); // 0[N/size]
+  for (i = 0; i < (N/size) + (rank == size - 1 ? N%size : 0); i++) {
+    if (local_b[i] == target) {
       fprintf(output_file, "%d\n", i + 1);
     }
   }
